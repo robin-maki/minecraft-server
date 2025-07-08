@@ -19,7 +19,7 @@ WORKDIR /app
 
 # Copy only necessary files from the builder stage
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/index.js .
+COPY --from=builder /app/* ./
 
 # Expose port if your bot needs to listen for anything (e.g., webhooks), though typically not needed for Discord bots
 # EXPOSE 3000
