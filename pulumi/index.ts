@@ -182,7 +182,7 @@ const launchTemplate = new aws.ec2.LaunchTemplate("minecraft-launch-template", {
         CLOUDFLARE_RECORD_NAME=$(aws ssm get-parameter --name "/minecraft/cloudflare/record-name" --query Parameter.Value --output text --region $AWS_REGION)
 
         # Install AWS CLI (if not already present) and jq for JSON parsing
-        yum install -y awscli jq screen java-17-amazon-corretto-headless
+        yum install -y awscli jq screen java-17-amazon-corretto-headless net-tools
 
         # Wait for EBS Volume to become available before attaching
         echo "Waiting for EBS volume $EBS_VOLUME_ID to become available..."
@@ -259,42 +259,24 @@ const launchTemplate = new aws.ec2.LaunchTemplate("minecraft-launch-template", {
         # Auto Shutdown Script
         (
             sleep 300 # Delay initial check by 5 minutes
-            ZERO_PLAYER_COUNT=0
+            ZERO_CONNECTION_COUNT=0
             while true; do
                 sleep 60 # Check every minute
                 
-                # 플레이어 수를 확인하기 위해 hardcopy 사용
-                HARDCOPY_FILE="/tmp/minecraft_hardcopy.log"
-                # 이전 로그 파일 삭제
-                rm -f $HARDCOPY_FILE
-                # list 명령어를 서버에 전송
-                screen -S minecraft -X stuff "list\n"
-                sleep 2 # 명령어 실행 및 출력 대기
-                # 화면 출력을 파일에 저장
-                screen -S minecraft -X hardcopy $HARDCOPY_FILE
-                sleep 1 # 파일 저장 대기
-
-                PLAYER_COUNT=""
-                if [ -f "$HARDCOPY_FILE" ]; then
-                    # 로그 파일에서 마지막 플레이어 수 관련 줄을 찾음
-                    PLAYER_COUNT_LINE=$(grep "There are" "$HARDCOPY_FILE" | tail -1)
-                    if [ -n "$PLAYER_COUNT_LINE" ]; then
-                        # 해당 줄에서 숫자만 추출
-                        PLAYER_COUNT=$(echo "$PLAYER_COUNT_LINE" | grep -oP 'There are \K\d+')
-                    fi
-                fi
+                # netstat으로 마인크래프트 포트(25565)의 ESTABLISHED 연결 수를 확인합니다.
+                CONNECTION_COUNT=$(netstat -atn | grep ':25565' | grep 'ESTABLISHED' | wc -l)
                 
-                if [ -z "$PLAYER_COUNT" ]; then
-                    PLAYER_COUNT=0
+                if [ -z "$CONNECTION_COUNT" ]; then
+                    CONNECTION_COUNT=0
                 fi
 
-                echo "Current players: $PLAYER_COUNT"
+                echo "Current connections: $CONNECTION_COUNT"
 
-                if [ "$PLAYER_COUNT" -eq 0 ]; then
-                    ZERO_PLAYER_COUNT=$((ZERO_PLAYER_COUNT + 1))
-                    echo "Zero players for $ZERO_PLAYER_COUNT minute(s)."
-                    if [ "$ZERO_PLAYER_COUNT" -ge 5 ]; then
-                        echo "No players for 5 minutes. Sending stop command to Minecraft server."
+                if [ "$CONNECTION_COUNT" -eq 0 ]; then
+                    ZERO_CONNECTION_COUNT=$((ZERO_CONNECTION_COUNT + 1))
+                    echo "No connections for $ZERO_CONNECTION_COUNT minute(s)."
+                    if [ "$ZERO_CONNECTION_COUNT" -ge 5 ]; then
+                        echo "No connections for 5 minutes. Sending stop command to Minecraft server."
                         screen -S minecraft -X stuff "stop\n"
                         
                         echo "Waiting for Minecraft server to shut down gracefully..."
@@ -310,7 +292,7 @@ const launchTemplate = new aws.ec2.LaunchTemplate("minecraft-launch-template", {
                         break
                     fi
                 else
-                    ZERO_PLAYER_COUNT=0
+                    ZERO_CONNECTION_COUNT=0
                 fi
             done
         ) & # Run in background
