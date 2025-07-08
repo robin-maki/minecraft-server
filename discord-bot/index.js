@@ -1,9 +1,12 @@
-import { Client, GatewayIntentBits, MessageFlags, REST } from "discord.js";
+import {
+  Client,
+  GatewayIntentBits,
+  MessageFlags,
+  Collection,
+} from "discord.js";
 import { commands } from "./command.js";
 
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
-const CLIENT_ID = process.env.CLIENT_ID;
-const GUILD_ID = process.env.GUILD_ID;
 
 const client = new Client({
   intents: [
@@ -13,7 +16,7 @@ const client = new Client({
   ],
 });
 
-const rest = new REST().setToken(DISCORD_BOT_TOKEN);
+client.commands = new Collection();
 
 client.once("ready", async () => {
   console.log(`Logged in as ${client.user.tag}!`);
@@ -28,7 +31,7 @@ client.once("ready", async () => {
     }
 
     console.log(
-      `Successfully reloaded ${data.length} application (/) commands.`
+      `Successfully reloaded ${commands.length} application (/) commands.`
     );
   } catch (error) {
     console.error("Error deploying commands:", error);

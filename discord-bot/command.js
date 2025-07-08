@@ -40,7 +40,7 @@ export const commands = [
         });
         await autoScalingClient.send(command);
         await interaction.editReply(
-          `Server start request sent for ${ASG_NAME}. Server should be starting soon.`
+          "서버를 시작하는 중입니다. 조금만 더 기다려주세요."
         );
       } catch (error) {
         console.error("Error starting server:", error);
