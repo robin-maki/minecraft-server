@@ -17,7 +17,6 @@ const rest = new REST().setToken(DISCORD_BOT_TOKEN);
 
 client.once("ready", async () => {
   console.log(`Logged in as ${client.user.tag}!`);
-  console.log(`Auto Scaling Group Name: ${ASG_NAME}`);
 
   if (!CLIENT_ID || !GUILD_ID) {
     console.error(
