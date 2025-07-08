@@ -1,22 +1,9 @@
-const { Client, GatewayIntentBits } = require("discord.js");
-const {
-  AutoScalingClient,
-  SetDesiredCapacityCommand,
-} = require("@aws-sdk/client-auto-scaling");
+import { Client, GatewayIntentBits, MessageFlags, REST } from "discord.js";
+import { commands } from "./command.js";
 
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
-const ASG_NAME = process.env.ASG_NAME;
-const AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;
-const AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY;
-const AWS_REGION = "ap-northeast-2";
-
-const autoScalingClient = new AutoScalingClient({
-  region: AWS_REGION,
-  credentials: {
-    accessKeyId: AWS_ACCESS_KEY_ID,
-    secretAccessKey: AWS_SECRET_ACCESS_KEY,
-  },
-});
+const CLIENT_ID = process.env.CLIENT_ID;
+const GUILD_ID = process.env.GUILD_ID;
 
 const client = new Client({
   intents: [
@@ -26,14 +13,7 @@ const client = new Client({
   ],
 });
 
-const commands = [
-  {
-    name: "start",
-    description: "Starts the Minecraft server",
-  },
-];
-
-const rest = new REST({ version: "10" }).setToken(DISCORD_BOT_TOKEN);
+const rest = new REST().setToken(DISCORD_BOT_TOKEN);
 
 client.once("ready", async () => {
   console.log(`Logged in as ${client.user.tag}!`);
@@ -51,7 +31,6 @@ client.once("ready", async () => {
       `Started refreshing ${commands.length} application (/) commands.`
     );
 
-    // The put method is used to fully refresh all commands in the guild with the current set
     const data = await rest.put(
       Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
       { body: commands }
@@ -66,34 +45,25 @@ client.once("ready", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
-  if (!interaction.isCommand()) return;
+  if (!interaction.isChatInputCommand()) return;
 
-  const { commandName } = interaction;
+  const command = interaction.client.commands.get(interaction.commandName);
+  if (!command) return;
 
-  if (commandName === "start") {
-    await interaction.deferReply();
-    if (!ASG_NAME || !AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY) {
-      await interaction.editReply(
-        "Bot is not configured with AWS credentials or ASG name."
-      );
-      return;
-    }
-
-    try {
-      const command = new SetDesiredCapacityCommand({
-        AutoScalingGroupName: ASG_NAME,
-        DesiredCapacity: 1, // Set desired capacity to 1 to start the server
-        HonorCooldown: false,
+  try {
+    await command.execute(interaction);
+  } catch (error) {
+    console.error(error);
+    if (interaction.replied || interaction.deferred) {
+      await interaction.followUp({
+        content: "There was an error while executing this command!",
+        flags: MessageFlags.Ephemeral,
       });
-      await autoScalingClient.send(command);
-      await interaction.editReply(
-        `Server start request sent for ${ASG_NAME}. Server should be starting soon.`
-      );
-    } catch (error) {
-      console.error("Error starting server:", error);
-      await interaction.editReply(
-        `Failed to send server start request: ${error.message}`
-      );
+    } else {
+      await interaction.reply({
+        content: "There was an error while executing this command!",
+        flags: MessageFlags.Ephemeral,
+      });
     }
   }
 });
