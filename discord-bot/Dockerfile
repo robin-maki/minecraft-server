@@ -1,16 +1,19 @@
 # Stage 1: Build the application
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+
+
 COPY package.json pnpm-lock.yaml* ./
 
+RUN corepack enable pnpm
 RUN pnpm install --prod --frozen-lockfile
 
 COPY . .
 
 # Stage 2: Create the final image
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 
