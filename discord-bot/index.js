@@ -18,22 +18,14 @@ const rest = new REST().setToken(DISCORD_BOT_TOKEN);
 client.once("ready", async () => {
   console.log(`Logged in as ${client.user.tag}!`);
 
-  if (!CLIENT_ID || !GUILD_ID) {
-    console.error(
-      "Missing environment variables for command deployment: CLIENT_ID and GUILD_ID are required."
-    );
-    return;
-  }
-
   try {
     console.log(
       `Started refreshing ${commands.length} application (/) commands.`
     );
 
-    const data = await rest.put(
-      Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-      { body: commands }
-    );
+    for (const command of commands) {
+      client.commands.set(command.data.name, command);
+    }
 
     console.log(
       `Successfully reloaded ${data.length} application (/) commands.`
